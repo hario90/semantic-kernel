@@ -21,6 +21,28 @@ public static class SKContextSequentialPlannerExtensions
 
     internal const string PlanSKFunctionsAreRemembered = "Planning.SKFunctionsAreRemembered";
 
+    // TODO -- a lot. Use semanticQuery eventually
+    public static async Task<string> GetSkillsManualAsync(
+        this SKContext context,
+        string? semanticQuery = null,
+        SequentialPlannerConfig? config = null,
+        CancellationToken cancellationToken = default)
+    {
+        return @"
+skills:
+   - name: TriviaSkill
+     description: Answers trivia questions on different topics.
+   - name: WriterSkill
+     description: Takes string input and translates to something else.
+   - name: FunSkill
+     description: Produces entertaining text
+   - name: SummarizeSkill
+     description: summarizes large amounts of text concisely
+   - name: DatabaseSkill
+     description: contains different database-related methods
+";
+    }
+
     /// <summary>
     /// Returns a string containing the manual for all available functions.
     /// </summary>
