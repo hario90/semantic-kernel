@@ -35,11 +35,21 @@ skills:
    - name: WriterSkill
      description: Takes string input and translates to something else.
    - name: FunSkill
-     description: Produces entertaining text
-   - name: SummarizeSkill
-     description: summarizes large amounts of text concisely
+     description: Produces entertaining text such as jokes, excuses, limericks from an input topic.
+   - name: MathSkill
+     description: Contains math-related methods.
    - name: DatabaseSkill
-     description: contains different database-related methods
+     description: Contains different database-related methods.
+   - name: LanguageTranslationSkill
+     description: Translates text between multiple languages.
+   - name: WeatherSkill
+     description: Provides current weather information for a specified location.
+   - name: CalendarSkill
+     description: Manages events, appointments, and schedules.
+   - name: ImageRecognitionSkill
+     description: Analyzes images and identifies objects, people, or scenes.
+   - name: NewsSkill
+     description: Retrieves and summarizes the latest news articles on various topics.
 ";
     }
 
