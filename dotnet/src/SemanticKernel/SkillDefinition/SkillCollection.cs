@@ -28,15 +28,17 @@ public class SkillCollection : ISkillCollection
         this._logger = loggerFactory is not null ? loggerFactory.CreateLogger(nameof(SkillCollection)) : NullLogger.Instance;
 
         // Important: names are case insensitive
-        this._skillCollection = new(StringComparer.OrdinalIgnoreCase);
+        this._skillCollection = new();
     }
 
-    public ISkillCollection AddFunction(ISKFunction functionInstance)
+    /// <inheritdoc/>
+    public ISkillCollection AddFunction(ISKFunction functionInstance, string? skillName, string? skillDescription)
     {
         Verify.NotNull(functionInstance);
+        string resolvedSkillName = skillName ?? functionInstance?.SkillName ?? throw new ArgumentNullException(nameof(skillName));
 
-        ConcurrentDictionary<string, ISKFunction> skill = this._skillCollection.GetOrAdd(functionInstance.SkillName, static _ => new(StringComparer.OrdinalIgnoreCase));
-        skill[functionInstance.Name] = functionInstance;
+        ISkill skill = this._skillCollection.GetOrAdd(resolvedSkillName, new Skill(resolvedSkillName, skillDescription));
+        skill.AddFunction(functionInstance);
 
         return this;
     }
@@ -66,9 +68,9 @@ public class SkillCollection : ISkillCollection
         Verify.NotNull(skillName);
         Verify.NotNull(functionName);
 
-        if (this._skillCollection.TryGetValue(skillName, out ConcurrentDictionary<string, ISKFunction>? skill))
+        if (this._skillCollection.TryGetValue(skillName, out ISkill? skill))
         {
-            return skill.TryGetValue(functionName, out availableFunction);
+            return skill.TryGetFunction(functionName, out availableFunction);
         }
 
         availableFunction = null;
@@ -82,9 +84,9 @@ public class SkillCollection : ISkillCollection
 
         if (includeSemantic || includeNative)
         {
-            foreach (var skill in this._skillCollection)
+            foreach (ISkill skill in this._skillCollection.Values)
             {
-                foreach (KeyValuePair<string, ISKFunction> f in skill.Value)
+                foreach (KeyValuePair<string, ISKFunction> f in skill.Functions)
                 {
                     if (f.Value.IsSemantic ? includeSemantic : includeNative)
                     {
@@ -111,7 +113,7 @@ public class SkillCollection : ISkillCollection
 
     private readonly ILogger _logger;
 
-    private readonly ConcurrentDictionary<string, ConcurrentDictionary<string, ISKFunction>> _skillCollection;
+    private readonly ConcurrentDictionary<string, ISkill> _skillCollection;
 
     #endregion
 }

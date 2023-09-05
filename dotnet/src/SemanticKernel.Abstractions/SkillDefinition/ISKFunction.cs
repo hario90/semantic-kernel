@@ -21,6 +21,7 @@ public interface ISKFunction
     /// <summary>
     /// Name of the skill containing the function. The name is used by the skill collection and in prompt templates e.g. {{skillName.functionName}}
     /// </summary>
+    [Obsolete("This property is obsolete and will be removed in a future release. Please pass the skill name when registering a function.")]
     string SkillName { get; }
 
     /// <summary>
