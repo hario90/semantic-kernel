@@ -1,5 +1,6 @@
 ﻿// Copyright (c) Microsoft. All rights reserved.
 
+using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using Microsoft.SemanticKernel.Diagnostics;
 
@@ -52,4 +53,6 @@ public interface IReadOnlySkillCollection
     /// <param name="includeNative">Whether to include native functions in the list</param>
     /// <returns>An object containing all the functions details</returns>
     FunctionsView GetFunctionsView(bool includeSemantic = true, bool includeNative = true);
+
+    List<SkillView> GetSkillViews();
 }

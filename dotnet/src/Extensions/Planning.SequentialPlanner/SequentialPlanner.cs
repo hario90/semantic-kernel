@@ -74,7 +74,7 @@ public sealed class SequentialPlanner : ISequentialPlanner
         this._context.Variables.Update(goal);
 
         var planResult = await this._functionFlowFunction.InvokeAsync(this._context, cancellationToken: cancellationToken).ConfigureAwait(false);
-;
+
         if (planResult.ErrorOccurred)
         {
             throw new SKException($"Error creating plan for goal: {planResult.LastException?.Message}", planResult.LastException);
@@ -102,8 +102,8 @@ public sealed class SequentialPlanner : ISequentialPlanner
             throw new SKException("The goal specified is empty");
         }
 
-        string relevantFunctionsManual = await this._context.GetFunctionsManualAsync(goal, this.Config, cancellationToken).ConfigureAwait(false);
-        this._context.Variables.Set("available_functions", relevantFunctionsManual);
+        //string relevantFunctionsManual = await this._context.GetFunctionsManualAsync(goal, this.Config, cancellationToken).ConfigureAwait(false);
+        //this._context.Variables.Set("available_functions", relevantFunctionsManual);
         string relevantSkillsManual = await this._context.GetSkillsManualAsync(goal, this.Config, cancellationToken).ConfigureAwait(false);
         this._context.Variables.Set("available_skills", relevantSkillsManual);
 
@@ -111,6 +111,7 @@ public sealed class SequentialPlanner : ISequentialPlanner
 
         var filteredSkillsResult = await this._selectSkillsFunction.InvokeAsync(this._context, cancellationToken: cancellationToken).ConfigureAwait(false);
 
+        // TODO filter the functions using filteredSkillsResult
         //var planResult = await this._functionFlowFunction.InvokeAsync(this._context, cancellationToken: cancellationToken).ConfigureAwait(false);
 
         //if (planResult.ErrorOccurred)

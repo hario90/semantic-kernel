@@ -1,7 +1,9 @@
 ﻿// Copyright (c) Microsoft. All rights reserved.
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Threading.Tasks;
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.Planning;
@@ -16,7 +18,24 @@ internal static class Example99_SequentialPlannerImprovements
         await PoetrySamplesAsync();
     }
 
-    // TODO - change Skills to Plugins everywhere? (new code)
+    private static List<string> GetSampleSkillNames(string folderPath)
+    {
+        var skills = new List<string>();
+        try
+        {
+            string[] subdirectories = Directory.GetDirectories(folderPath);
+            foreach (string subdirectoryPath in subdirectories)
+            {
+                skills.Add(Path.GetFileName(subdirectoryPath));
+            }
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine("There was an error while parsing sample skills: {error}", e.Message);
+        }
+        return skills;
+    }
+
     private static async Task PoetrySamplesAsync()
     {
         Console.WriteLine("======== Sequential Planner - Create and Execute Poetry Plan ========");
@@ -37,16 +56,12 @@ internal static class Example99_SequentialPlannerImprovements
                 TestConfiguration.AzureOpenAI.ChatDeploymentName,
                 TestConfiguration.AzureOpenAI.Endpoint,
                 TestConfiguration.AzureOpenAI.ApiKey)
-            //.WithAzureTextCompletionService(
-            //    TestConfiguration.AzureOpenAI.DeploymentName,
-            //    TestConfiguration.AzureOpenAI.Endpoint,
-            //    TestConfiguration.AzureOpenAI.ApiKey)
             .Build();
 
         string folder = RepoFiles.SampleSkillsPath();
+        var allSampleSkills = Example99_SequentialPlannerImprovements.GetSampleSkillNames(folder);
         kernel.ImportSemanticSkillFromDirectory(folder,
-            "SummarizeSkill",
-            "WriterSkill");
+            allSampleSkills.ToArray());
         var selectSkillsPrompt = @"
 Select the skills that are relevant to the goal given.
 [AVAILABLE SKILLS]
@@ -81,10 +96,10 @@ Begin!
         Console.WriteLine("Original plan:");
         Console.WriteLine(plan.ToPlanWithGoalString());
 
-        var result = await kernel.RunAsync(plan);
+        //var result = await kernel.RunAsync(plan);
 
-        Console.WriteLine("Result:");
-        Console.WriteLine(result.Result);
+        //Console.WriteLine("Result:");
+        //Console.WriteLine(result.Result);
 
         sw.Restart();
 

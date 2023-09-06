@@ -47,6 +47,11 @@ public sealed class SequentialPlannerConfig
     public HashSet<string> ExcludedFunctions { get; } = new();
 
     /// <summary>
+    /// A list of skills to include in the plan creation request.
+    /// </summary>
+    public HashSet<string> IncludedSkills { get; } = new();
+
+    /// <summary>
     /// A list of functions to include in the plan creation request.
     /// </summary>
     public HashSet<string> IncludedFunctions { get; } = new();
@@ -72,6 +77,11 @@ public sealed class SequentialPlannerConfig
     /// Optional callback to get the available functions for planning.
     /// </summary>
     public Func<SequentialPlannerConfig, string?, CancellationToken, Task<IOrderedEnumerable<FunctionView>>>? GetAvailableFunctionsAsync { get; set; }
+
+    /// <summary>
+    /// Optional callback to get the available skills for planning.
+    /// </summary>
+    public Func<SequentialPlannerConfig, string?, CancellationToken, Task<IOrderedEnumerable<SkillView>>>? GetAvailableSkillsAsync { get; set; }
 
     /// <summary>
     /// Optional callback to get a function by name.
