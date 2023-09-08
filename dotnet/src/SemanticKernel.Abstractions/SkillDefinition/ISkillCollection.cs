@@ -1,5 +1,6 @@
 ﻿// Copyright (c) Microsoft. All rights reserved.
 
+using System;
 using System.Diagnostics.CodeAnalysis;
 
 namespace Microsoft.SemanticKernel.SkillDefinition;
@@ -10,6 +11,14 @@ namespace Microsoft.SemanticKernel.SkillDefinition;
 [SuppressMessage("Naming", "CA1711:Identifiers should not have incorrect suffix")]
 public interface ISkillCollection : IReadOnlySkillCollection
 {
+    /// <summary>
+    /// Add a function to the collection
+    /// </summary>
+    /// <param name="functionInstance">Function delegate</param>
+    /// <returns>Self instance</returns>
+    [Obsolete("Use AddFunction(ISKFunction, string?, string?) instead. This will be removed in a future release.")]
+    ISkillCollection AddFunction(ISKFunction functionInstance);
+
     /// <summary>
     /// Add a function to the collection
     /// </summary>

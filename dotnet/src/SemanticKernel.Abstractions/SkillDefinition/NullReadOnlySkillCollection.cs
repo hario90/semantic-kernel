@@ -1,5 +1,6 @@
 ﻿// Copyright (c) Microsoft. All rights reserved.
 
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using Microsoft.SemanticKernel.Diagnostics;
@@ -39,6 +40,11 @@ internal sealed class NullReadOnlySkillCollection : IReadOnlySkillCollection
 
     /// <inheritdoc/>
     public FunctionsView GetFunctionsView(bool includeSemantic = true, bool includeNative = true)
+    {
+        return new();
+    }
+
+    public List<SkillView> GetSkillViews()
     {
         return new();
     }

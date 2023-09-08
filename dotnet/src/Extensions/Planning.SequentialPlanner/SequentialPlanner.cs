@@ -109,7 +109,7 @@ public sealed class SequentialPlanner : ISequentialPlanner
 
         this._context.Variables.Update(goal);
 
-        var filteredSkillsResult = await this._selectSkillsFunction.InvokeAsync(this._context, cancellationToken: cancellationToken).ConfigureAwait(false);
+        //var filteredSkillsResult = await this._selectSkillsFunction.InvokeAsync(this._context, cancellationToken: cancellationToken).ConfigureAwait(false);
 
         // TODO filter the functions using filteredSkillsResult
         //var planResult = await this._functionFlowFunction.InvokeAsync(this._context, cancellationToken: cancellationToken).ConfigureAwait(false);
@@ -130,7 +130,8 @@ public sealed class SequentialPlanner : ISequentialPlanner
         //    throw new SKException($"Not possible to create plan for goal with available functions.\nGoal:{goal}\nFunctions:\n{relevantFunctionsManual}");
         //}
 
-        return filteredSkillsResult.Result?.Trim();
+        //return filteredSkillsResult.Result?.Trim();
+        return relevantSkillsManual;
     }
 
     private SequentialPlannerConfig Config { get; }

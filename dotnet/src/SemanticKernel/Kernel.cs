@@ -94,7 +94,7 @@ public sealed class Kernel : IKernel, IDisposable
         Verify.ValidFunctionName(functionName);
 
         ISKFunction function = this.CreateSemanticFunction(skillName, functionName, functionConfig);
-        this._skillCollection.AddFunction(function);
+        this._skillCollection.AddFunction(function, skillName, functionConfig.PromptTemplateConfig.Description);
 
         return function;
     }
@@ -114,6 +114,8 @@ public sealed class Kernel : IKernel, IDisposable
             this._logger.LogTrace("Importing skill {0}", skillName);
         }
 
+        DescriptionAttribute descriptionAttribute = (DescriptionAttribute)Attribute.GetCustomAttribute(skillInstance.GetType(), typeof(DescriptionAttribute));
+        var description = descriptionAttribute?.Description;
         Dictionary<string, ISKFunction> skill = ImportSkill(
             skillInstance,
             skillName!,
@@ -123,7 +125,7 @@ public sealed class Kernel : IKernel, IDisposable
         foreach (KeyValuePair<string, ISKFunction> f in skill)
         {
             f.Value.SetDefaultSkillCollection(this.Skills);
-            this._skillCollection.AddFunction(f.Value);
+            this._skillCollection.AddFunction(f.Value, skillName, description);
         }
 
         return skill;
@@ -135,7 +137,7 @@ public sealed class Kernel : IKernel, IDisposable
         Verify.NotNull(customFunction);
 
         customFunction.SetDefaultSkillCollection(this.Skills);
-        this._skillCollection.AddFunction(customFunction);
+        this._skillCollection.AddFunction(customFunction, customFunction.SkillName, null);
 
         return customFunction;
     }

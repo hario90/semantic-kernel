@@ -18,12 +18,7 @@ public sealed class SkillView
     /// <summary>
     /// Function description. The description is used in combination with embeddings when searching relevant functions.
     /// </summary>
-    public string Description { get; set; } = string.Empty;
-
-    /// <summary>
-    /// TODO
-    /// </summary>
-    public FunctionsView Functions { get; set; }
+    public string? Description { get; set; } = string.Empty;
 
     [DebuggerBrowsable(DebuggerBrowsableState.Never)]
     private string DebuggerDisplay => string.IsNullOrEmpty(this.Description)

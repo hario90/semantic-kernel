@@ -32,6 +32,12 @@ public class SkillCollection : ISkillCollection
     }
 
     /// <inheritdoc/>
+    public ISkillCollection AddFunction(ISKFunction functionInstance)
+    {
+        return this.AddFunction(functionInstance, functionInstance?.SkillName, null);
+    }
+
+    /// <inheritdoc/>
     public ISkillCollection AddFunction(ISKFunction functionInstance, string? skillName, string? skillDescription)
     {
         Verify.NotNull(functionInstance);
@@ -94,6 +100,21 @@ public class SkillCollection : ISkillCollection
                     }
                 }
             }
+        }
+
+        return result;
+    }
+
+    public List<SkillView> GetSkillViews()
+    {
+        List<SkillView> result = new();
+        foreach (ISkill skill in this._skillCollection.Values)
+        {
+            result.Add(new SkillView
+            {
+                Name = skill.Name,
+                Description = skill.Description
+            });
         }
 
         return result;

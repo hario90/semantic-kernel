@@ -17,13 +17,22 @@ namespace Microsoft.SemanticKernel.Orchestration;
 
 public static class SKContextSequentialPlannerExtensions
 {
-    internal const string PlannerMemoryCollectionName = "Planning.SKFunctionsManual";
+    internal const string PlannerMemoryFunctionCollectionName = "Planning.SKFunctionsManual";
+
+    internal const string PlannerMemorySkillCollectionName = "Planning.SKSkillsManual";
 
     internal const string PlanSKFunctionsAreRemembered = "Planning.SKFunctionsAreRemembered";
 
     internal const string PlanSkillsAreRemembered = "Planning.SkillsAreRemembered";
 
-    // TODO summary
+    /// <summary>
+    /// Returns a string containing the manual for all available functions.
+    /// </summary>
+    /// <param name="context">The SKContext to get the functions manual for.</param>
+    /// <param name="semanticQuery">The semantic query for finding relevant registered functions</param>
+    /// <param name="config">The planner skill config.</param>
+    /// <param name="cancellationToken">The <see cref="CancellationToken"/> to monitor for cancellation requests. The default is <see cref="CancellationToken.None"/>.</param>
+    /// <returns>A string containing the manual for all available functions.</returns>
     public static async Task<string> GetSkillsManualAsync(
         this SKContext context,
         string? semanticQuery = null,
@@ -38,29 +47,6 @@ public static class SKContextSequentialPlannerExtensions
             await config.GetAvailableSkillsAsync(config, semanticQuery, cancellationToken).ConfigureAwait(false);
 
         return string.Join("\n\n", skills.Select(x => x.ToManualString()));
-//        return @"
-//skills:
-//   - name: TriviaSkill
-//     description: Answers trivia questions on different topics.
-//   - name: WriterSkill
-//     description: Takes string input and translates to something else.
-//   - name: FunSkill
-//     description: Produces entertaining text such as jokes, excuses, limericks from an input topic.
-//   - name: MathSkill
-//     description: Contains math-related methods.
-//   - name: DatabaseSkill
-//     description: Contains different database-related methods.
-//   - name: LanguageTranslationSkill
-//     description: Translates text between multiple languages.
-//   - name: WeatherSkill
-//     description: Provides current weather information for a specified location.
-//   - name: CalendarSkill
-//     description: Manages events, appointments, and schedules.
-//   - name: ImageRecognitionSkill
-//     description: Analyzes images and identifies objects, people, or scenes.
-//   - name: NewsSkill
-//     description: Retrieves and summarizes the latest news articles on various topics.
-//";
     }
 
     /// <summary>
@@ -77,9 +63,9 @@ public static class SKContextSequentialPlannerExtensions
         string? semanticQuery = null,
         CancellationToken cancellationToken = default)
     {
-        var skillsView = context.Skills.GetSkillViews();
+        var skillViews = context.Skills.GetSkillViews();
 
-        var availableSkills = skillsView
+        var availableSkills = skillViews
             .Where(s => !config.ExcludedSkills.Contains(s.Name))
             .ToList();
 
@@ -94,12 +80,12 @@ public static class SKContextSequentialPlannerExtensions
         {
             result = new List<SkillView>();
 
-            // Remember functions in memory so that they can be searched.
+            // Remember skills in memory so that they can be searched.
             await RememberSkillsAsync(context, config.Memory, availableSkills, cancellationToken).ConfigureAwait(false);
 
-            // Search for functions that match the semantic query.
+            // Search for skills that match the semantic query.
             var memories = config.Memory.SearchAsync(
-                PlannerMemoryCollectionName,
+                PlannerMemorySkillCollectionName,
                 semanticQuery!,
                 config.MaxRelevantFunctions, // TODO keep?
                 config.RelevancyThreshold.Value,
@@ -182,7 +168,7 @@ public static class SKContextSequentialPlannerExtensions
 
             // Search for functions that match the semantic query.
             var memories = config.Memory.SearchAsync(
-                PlannerMemoryCollectionName,
+                PlannerMemoryFunctionCollectionName,
                 semanticQuery!,
                 config.MaxRelevantFunctions,
                 config.RelevancyThreshold.Value,
@@ -257,14 +243,14 @@ public static class SKContextSequentialPlannerExtensions
             var textToEmbed = function.ToEmbeddingString();
 
             // It'd be nice if there were a saveIfNotExists method on the memory interface
-            var memoryEntry = await memory.GetAsync(collection: PlannerMemoryCollectionName, key: key, withEmbedding: false,
+            var memoryEntry = await memory.GetAsync(collection: PlannerMemoryFunctionCollectionName, key: key, withEmbedding: false,
                 cancellationToken: cancellationToken).ConfigureAwait(false);
             if (memoryEntry == null)
             {
                 // TODO It'd be nice if the minRelevanceScore could be a parameter for each item that was saved to memory
                 // As folks may want to tune their functions to be more or less relevant.
                 // Memory now supports these such strategies.
-                await memory.SaveInformationAsync(collection: PlannerMemoryCollectionName, text: textToEmbed, id: key, description: description,
+                await memory.SaveInformationAsync(collection: PlannerMemoryFunctionCollectionName, text: textToEmbed, id: key, description: description,
                     additionalMetadata: string.Empty, cancellationToken: cancellationToken).ConfigureAwait(false);
             }
         }
@@ -301,20 +287,20 @@ public static class SKContextSequentialPlannerExtensions
             var textToEmbed = skill.ToEmbeddingString();
 
             // It'd be nice if there were a saveIfNotExists method on the memory interface
-            var memoryEntry = await memory.GetAsync(collection: PlannerMemoryCollectionName, key: key, withEmbedding: false,
+            var memoryEntry = await memory.GetAsync(collection: PlannerMemorySkillCollectionName, key: key, withEmbedding: false,
                 cancellationToken: cancellationToken).ConfigureAwait(false);
             if (memoryEntry == null)
             {
                 // TODO It'd be nice if the minRelevanceScore could be a parameter for each item that was saved to memory
                 // As folks may want to tune their functions to be more or less relevant.
                 // Memory now supports these such strategies.
-                await memory.SaveInformationAsync(collection: PlannerMemoryCollectionName, text: textToEmbed, id: key, description: description,
+                await memory.SaveInformationAsync(collection: PlannerMemorySkillCollectionName, text: textToEmbed, id: key, description: description,
                     additionalMetadata: string.Empty, cancellationToken: cancellationToken).ConfigureAwait(false);
             }
         }
 
         // Set a flag to indicate that the functions have been saved to memory.
-        context.Variables.Set(PlanSKFunctionsAreRemembered, "true");
+        context.Variables.Set(PlanSkillsAreRemembered, "true");
     }
 
     // TODO Reorder methods and consider making a generic method for this to be shared for getting skills/functions

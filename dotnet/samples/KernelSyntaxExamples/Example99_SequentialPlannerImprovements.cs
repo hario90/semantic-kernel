@@ -6,7 +6,9 @@ using System.Diagnostics;
 using System.IO;
 using System.Threading.Tasks;
 using Microsoft.SemanticKernel;
+using Microsoft.SemanticKernel.Memory;
 using Microsoft.SemanticKernel.Planning;
+using Microsoft.SemanticKernel.Planning.Sequential;
 using RepoUtils;
 
 // ReSharper disable CommentTypo
@@ -52,6 +54,11 @@ internal static class Example99_SequentialPlannerImprovements
 
         var kernel = new KernelBuilder()
             .WithLoggerFactory(ConsoleLogger.LoggerFactory)
+            .WithAzureTextEmbeddingGenerationService(
+                TestConfiguration.AzureOpenAIEmbeddings.DeploymentName,
+                TestConfiguration.AzureOpenAIEmbeddings.Endpoint,
+                TestConfiguration.AzureOpenAIEmbeddings.ApiKey)
+            .WithMemoryStorage(new VolatileMemoryStore())
             .WithAzureChatCompletionService(
                 TestConfiguration.AzureOpenAI.ChatDeploymentName,
                 TestConfiguration.AzureOpenAI.Endpoint,
@@ -76,7 +83,7 @@ Begin!
 <goal>{{$input}}</goal>
 
 ";
-        var planner = new SequentialPlanner(kernel, selectSkillsPrompt: selectSkillsPrompt);
+        var planner = new SequentialPlanner(kernel, config: new SequentialPlannerConfig { RelevancyThreshold = 0.65, Memory = kernel.Memory }, selectSkillsPrompt: selectSkillsPrompt);
         var goal = "Write a poem about John Doe, then translate it into Italian.";
 
         Stopwatch sw = Stopwatch.StartNew();
