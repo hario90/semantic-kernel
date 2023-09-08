@@ -18,6 +18,7 @@ namespace Microsoft.SemanticKernel.Skills.Core;
 /// {{file.readAsync $path }} => "hello world"
 /// {{file.writeAsync}}
 /// </example>
+[Description("Provides file read and write functionality.")]
 public sealed class FileIOSkill
 {
     /// <summary>

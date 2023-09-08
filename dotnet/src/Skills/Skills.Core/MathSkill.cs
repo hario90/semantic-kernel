@@ -13,6 +13,7 @@ namespace Microsoft.SemanticKernel.Skills.Core;
 /// Examples:
 /// {{math.Add}}         => Returns the sum of FirstNumber and SecondNumber (provided in the SKContext)
 /// </example>
+[Description("Provides a set of functions to make Math calculations.")]
 public sealed class MathSkill
 {
     /// <summary>

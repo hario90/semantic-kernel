@@ -22,6 +22,7 @@ namespace Microsoft.SemanticKernel.Skills.Core;
 /// SKContext.Variables["input"] = "HELLO WORLD"
 /// {{text.lowercase $input}} => "hello world"
 /// </example>
+[Description("Provides a set of functions to manipulate strings.")]
 public sealed class TextSkill
 {
     /// <summary>

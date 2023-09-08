@@ -23,6 +23,7 @@ namespace Microsoft.SemanticKernel.Skills.Core;
 /// </example>
 [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1054:URI-like parameters should not be strings",
     Justification = "Semantic Kernel operates on strings")]
+[Description("A skill that provides HTTP functionality.")]
 public sealed class HttpSkill
 {
     private readonly HttpClient _client;
