@@ -1,6 +1,5 @@
 ﻿// Copyright (c) Microsoft. All rights reserved.
 
-using System.Linq;
 using Microsoft.SemanticKernel.SkillDefinition;
 
 namespace Microsoft.SemanticKernel.Planning.Sequential;
@@ -28,6 +27,7 @@ internal static class SkillViewExtensions
     /// <returns>A string for generating an embedding for a skill.</returns>
     internal static string ToEmbeddingString(this SkillView skill)
     {
-        return $"{skill.Name}:\n  description: {skill.Description}\n";
+        var nameWithoutSkill = skill.Name.EndsWith("skill", System.StringComparison.OrdinalIgnoreCase) ? skill.Name.Substring(0, skill.Name.Length - "skill".Length) : skill.Name;
+        return $"{nameWithoutSkill}:\n  description: {skill.Description}\n";
     }
 }

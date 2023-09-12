@@ -18,7 +18,7 @@ namespace Microsoft.SemanticKernel.Skills.Core;
 /// kernel.ImportSkill(new ConversationSummarySkill(kernel));
 /// </code>
 /// </example>
-[Description("Provides conversation summarization capabilities including getting action items and conversation topics.")]
+[Description("Get action items, conversation topics.")]
 public class ConversationSummarySkill
 {
     /// <summary>

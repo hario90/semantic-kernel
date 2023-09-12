@@ -22,7 +22,7 @@ namespace Microsoft.SemanticKernel.Skills.Core;
 /// SKContext.Variables["input"] = "what is the capital of France?"
 /// {{memory.recall $input }} => "Paris"
 /// </example>
-[Description("Provides a skill to save or recall information from the long or short term memory.")]
+[Description("Save or recall information from the long or short term memory.")]
 public sealed class TextMemorySkill
 {
     /// <summary>

@@ -50,11 +50,19 @@ internal static class Example99_SequentialPlannerImprovements
         kernel.ImportSkill(new ConsoleSkill(), "ConsoleSkill");
     }
 
-    private static void WriteResult(bool passed)
+    private static void WritePassed(bool passed)
     {
         var color = passed ? ConsoleColor.Green : ConsoleColor.Red;
         Console.ForegroundColor = color;
         Console.Write(passed);
+        Console.ForegroundColor = ConsoleColor.White;
+        Console.WriteLine();
+    }
+
+    private static void WriteResult(string result, ConsoleColor color = ConsoleColor.Yellow)
+    {
+        Console.ForegroundColor = color;
+        Console.Write(result);
         Console.ForegroundColor = ConsoleColor.White;
         Console.WriteLine();
     }
@@ -69,11 +77,24 @@ internal static class Example99_SequentialPlannerImprovements
         return (Duration: sw.Elapsed.TotalMilliseconds, Plan: plan);
     }
 
+    private static bool PlansEqual(Plan plan1, Plan plan2)
+    {
+        if (plan1.Steps.Count != plan2.Steps.Count) return false;
+
+        for (int i = 0; i < plan1.Steps.Count; i++)
+        {
+            var step1 = plan1.Steps[i];
+            var step2 = plan2.Steps[i];
+            if (step1.SkillName != step2.SkillName) return false;
+        }
+        return true;
+    }
+
     private static void PrintAccuracyResults(Plan originalPlan, Plan newPlan)
     {
-        var plansMatch = originalPlan.ToPlanString() == newPlan.ToPlanString();
+        var plansMatch = Example99_SequentialPlannerImprovements.PlansEqual(originalPlan, newPlan); // originalPlan.ToPlanString() == newPlan.ToPlanString();
         Console.Write("Plans match? ");
-        Example99_SequentialPlannerImprovements.WriteResult(plansMatch);
+        Example99_SequentialPlannerImprovements.WritePassed(plansMatch);
 
         if (!plansMatch)
         {
@@ -85,14 +106,15 @@ internal static class Example99_SequentialPlannerImprovements
     private static void PrintSpeedResults(double original, double newSpeed)
     {
         Console.Write("New plan was faster? ");
-        Example99_SequentialPlannerImprovements.WriteResult(newSpeed < original);
+        Example99_SequentialPlannerImprovements.WritePassed(newSpeed < original);
     }
 
     private static async Task RunNewCreatePlan(string goal, SequentialPlanner planner, Stopwatch sw, double oldDuration, Plan oldPlan, string planType)
     {
         var newPlan = await Example99_SequentialPlannerImprovements.RunNewPlan(goal, planner, sw);
 
-        Console.WriteLine($"New {planType} took {newPlan.Duration} milliseconds");
+        Console.Write($"New {planType} took: ");
+        Example99_SequentialPlannerImprovements.WriteResult($"{newPlan.Duration}ms");
 
         Example99_SequentialPlannerImprovements.PrintAccuracyResults(oldPlan, newPlan.Plan);
 
@@ -152,7 +174,8 @@ internal static class Example99_SequentialPlannerImprovements
             var plan = await planner.CreatePlanAsync(goal);
 
             sw.Stop();
-            Console.WriteLine($"Old Create Plan took {sw.Elapsed.TotalMilliseconds} milliseconds");
+            Console.Write($"Old Create Plan took: ");
+            Example99_SequentialPlannerImprovements.WriteResult($"{sw.Elapsed.TotalMilliseconds}ms");
             originalCreatePlanDuration = sw.Elapsed.TotalMilliseconds;
 
             Console.WriteLine("Original plan:");

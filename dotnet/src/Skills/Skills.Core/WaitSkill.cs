@@ -14,7 +14,7 @@ namespace Microsoft.SemanticKernel.Skills.Core;
 /// Examples:
 /// {{wait.seconds 10}}         => Wait 10 seconds
 /// </example>
-[Description("Provides a set of functions to wait before making the rest of operations.")]
+[Description("Wait before making the rest of operations.")]
 public sealed class WaitSkill
 {
     private readonly IWaitProvider _waitProvider;

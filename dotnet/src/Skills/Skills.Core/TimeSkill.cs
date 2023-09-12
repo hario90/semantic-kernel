@@ -38,7 +38,7 @@ namespace Microsoft.SemanticKernel.Skills.Core;
 /// Note: the time represents the time on the hw/vm/machine where the kernel is running.
 /// TODO: import and use user's timezone
 /// </remark>
-[Description("Provides a set of functions to get the current time and date.")]
+[Description("Get the current time and date.")]
 public sealed class TimeSkill
 {
     /// <summary>

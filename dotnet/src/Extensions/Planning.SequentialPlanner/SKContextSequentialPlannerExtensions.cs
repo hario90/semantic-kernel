@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -50,7 +51,12 @@ public static class SKContextSequentialPlannerExtensions
         ISet<string> skills = config.GetAvailableSkillsAsync is null ?
             await context.GetAvailableSkillsAsync(kernel, scopedSkillsSkill, config, semanticQuery, cancellationToken).ConfigureAwait(false) :
             await config.GetAvailableSkillsAsync(config, semanticQuery, cancellationToken).ConfigureAwait(false);
-        Console.WriteLine($"Filtered skills length: {skills.Count}");
+        Console.Write($"Filtered skills length: ");
+        Console.ForegroundColor = ConsoleColor.Yellow;
+        Console.Write($"{skills.Count}");
+        Console.ForegroundColor = ConsoleColor.White;
+        Console.WriteLine();
+        //Console.WriteLine($"Filtered skills: {string.Join(", ", skills)}");
 
         // Use configured function provider if available, otherwise use the default SKContext function provider.
         IOrderedEnumerable<FunctionView> functions = config.GetAvailableFunctionsAsync is null ?
@@ -82,6 +88,7 @@ public static class SKContextSequentialPlannerExtensions
         string? semanticQuery = null,
         CancellationToken cancellationToken = default)
     {
+        Stopwatch sw = Stopwatch.StartNew();
         var skillViews = context.Skills.GetSkillViews();
 
         var availableSkills = skillViews
@@ -91,6 +98,7 @@ public static class SKContextSequentialPlannerExtensions
         List<string> result = new();
         if (config.UseSemanticFunctionForFunctionLookup && semanticQuery != null)
         {
+            Console.WriteLine("Starting get skills using semantic function");
             context.Variables.Update(semanticQuery);
             var availableSkillNames = availableSkills.Select(skill => skill.Name).ToList();
             context.Variables.Set("available_skills", string.Join(",", availableSkillNames));
@@ -102,16 +110,20 @@ public static class SKContextSequentialPlannerExtensions
         }
         else if (string.IsNullOrEmpty(semanticQuery) || config.Memory is NullMemory || config.RelevancyThreshold is null)
         {
+            Console.WriteLine("Not filtering skills because no memory provider is configured");
             // If no semantic query is provided, return all available skills.
             // If a Memory provider has not been registered, return all available skills.
             result = availableSkills.Select(skill => skill.Name).ToList();
         }
         else
         {
+            Console.WriteLine("Starting get skills using memory.");
             result = new List<string>();
 
             // Remember skills in memory so that they can be searched.
             await RememberSkillsAsync(context, config.Memory, availableSkills, cancellationToken).ConfigureAwait(false);
+
+            Stopwatch sw2 = Stopwatch.StartNew();
 
             // Search for skills that match the semantic query.
             var memories = config.Memory.SearchAsync(
@@ -120,14 +132,16 @@ public static class SKContextSequentialPlannerExtensions
                 config.MaxRelevantFunctions, // TODO keep?
                 config.RelevancyThreshold.Value,
                 cancellationToken: cancellationToken);
-
+            sw2.Stop();
+            Console.WriteLine($"Search memories took {sw2.Elapsed.TotalMilliseconds}ms");
             // Add skills that were found in the search results.
             result.AddRange(await GetRelevantSkillsAsync(context, availableSkills, memories, cancellationToken).ConfigureAwait(false));
 
             // Add any missing skills that were included but not found in the search results.
             result.AddRange(config.IncludedSkills);
         }
-
+        sw.Stop();
+        Console.WriteLine($"Took {sw.Elapsed.TotalMilliseconds}ms total to get relevant skills");
         return new HashSet<string>(result);
     }
 
@@ -240,6 +254,7 @@ public static class SKContextSequentialPlannerExtensions
         IAsyncEnumerable<MemoryQueryResult> memories,
         CancellationToken cancellationToken = default)
     {
+        Stopwatch sw = Stopwatch.StartNew();
         ILogger? logger = null;
         var relevantFunctions = new ConcurrentBag<FunctionView>();
         await foreach (var memoryEntry in memories.WithCancellation(cancellationToken))
@@ -257,6 +272,8 @@ public static class SKContextSequentialPlannerExtensions
             }
         }
 
+        sw.Stop();
+        Console.WriteLine($"Get relevant functions took: {sw.Elapsed.TotalMilliseconds}ms");
         return relevantFunctions;
     }
 
@@ -273,9 +290,11 @@ public static class SKContextSequentialPlannerExtensions
         List<FunctionView> availableFunctions,
         CancellationToken cancellationToken = default)
     {
+        Stopwatch sw = Stopwatch.StartNew();
         // Check if the functions have already been saved to memory.
         if (context.Variables.ContainsKey(PlanSKFunctionsAreRemembered))
         {
+            sw.Stop();
             return;
         }
 
@@ -301,6 +320,8 @@ public static class SKContextSequentialPlannerExtensions
 
         // Set a flag to indicate that the functions have been saved to memory.
         context.Variables.Set(PlanSKFunctionsAreRemembered, "true");
+        sw.Stop();
+        Console.WriteLine($"Remember functions took: {sw.Elapsed.TotalMilliseconds}ms");
     }
 
     // TODO - this was copied and is very similar to the above. see if a generic version of this fn can be written to be shared.
@@ -317,9 +338,11 @@ public static class SKContextSequentialPlannerExtensions
         List<SkillView> availableSkills,
         CancellationToken cancellationToken = default)
     {
+        Stopwatch sw = Stopwatch.StartNew();
         // Check if the functions have already been saved to memory.
         if (context.Variables.ContainsKey(PlanSkillsAreRemembered))
         {
+            sw.Stop();
             return;
         }
 
@@ -345,6 +368,8 @@ public static class SKContextSequentialPlannerExtensions
 
         // Set a flag to indicate that the functions have been saved to memory.
         context.Variables.Set(PlanSkillsAreRemembered, "true");
+        sw.Stop();
+        Console.WriteLine($"Remember skills took: {sw.Elapsed.TotalMilliseconds}ms");
     }
 
     // TODO Reorder methods and consider making a generic method for this to be shared for getting skills/functions
@@ -354,6 +379,7 @@ public static class SKContextSequentialPlannerExtensions
     IAsyncEnumerable<MemoryQueryResult> memories,
     CancellationToken cancellationToken = default)
     {
+        Stopwatch sw = Stopwatch.StartNew();
         ILogger? logger = null;
         var relevantSkills = new ConcurrentBag<string>();
         await foreach (var memoryEntry in memories.WithCancellation(cancellationToken))
@@ -371,6 +397,8 @@ public static class SKContextSequentialPlannerExtensions
             }
         }
 
+        sw.Stop();
+        Console.WriteLine($"GetRelevantSkillsAsync took: {sw.Elapsed.TotalMilliseconds}ms");
         return relevantSkills;
     }
 }
