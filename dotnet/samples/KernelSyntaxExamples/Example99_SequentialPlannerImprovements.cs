@@ -9,7 +9,9 @@ using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.Memory;
 using Microsoft.SemanticKernel.Planning;
 using Microsoft.SemanticKernel.Planning.Sequential;
+using Microsoft.SemanticKernel.Skills.Core;
 using RepoUtils;
+using Skills;
 
 // ReSharper disable CommentTypo
 // ReSharper disable once InconsistentNaming
@@ -17,28 +19,87 @@ internal static class Example99_SequentialPlannerImprovements
 {
     public static async Task RunAsync()
     {
-        await PoetrySamplesAsync();
+        await RunCreatePlanComparisons();
     }
 
     private static List<string> GetSampleSkillNames(string folderPath)
     {
         var skills = new List<string>();
-        try
+        string[] subdirectories = Directory.GetDirectories(folderPath);
+        foreach (string subdirectoryPath in subdirectories)
         {
-            string[] subdirectories = Directory.GetDirectories(folderPath);
-            foreach (string subdirectoryPath in subdirectories)
-            {
-                skills.Add(Path.GetFileName(subdirectoryPath));
-            }
-        }
-        catch (Exception e)
-        {
-            Console.WriteLine("There was an error while parsing sample skills: {error}", e.Message);
+            skills.Add(Path.GetFileName(subdirectoryPath));
         }
         return skills;
     }
 
-    private static async Task PoetrySamplesAsync()
+    private static void ImportSkills(IKernel kernel)
+    {
+        string folder = RepoFiles.SampleSkillsPath();
+        var allSampleSkills = Example99_SequentialPlannerImprovements.GetSampleSkillNames(folder);
+        kernel.ImportSemanticSkillFromDirectory(folder,
+            allSampleSkills.ToArray());
+        kernel.ImportSkill(new MathSkill(), "MathSkill");
+        kernel.ImportSkill(new ConversationSummarySkill(kernel), "ConversationSummarySkill");
+        kernel.ImportSkill(new FileIOSkill(), "FileIOSkill");
+        kernel.ImportSkill(new HttpSkill(), "HttpSkill");
+        kernel.ImportSkill(new TextMemorySkill(NullMemory.Instance), "TextMemorySkill");
+        kernel.ImportSkill(new TextSkill(), "TextSkill");
+        kernel.ImportSkill(new TimeSkill(), "TimeSkill");
+        kernel.ImportSkill(new WaitSkill(), "WaitSkill");
+        kernel.ImportSkill(new ConsoleSkill(), "ConsoleSkill");
+    }
+
+    private static void WriteResult(bool passed)
+    {
+        var color = passed ? ConsoleColor.Green : ConsoleColor.Red;
+        Console.ForegroundColor = color;
+        Console.Write(passed);
+        Console.ForegroundColor = ConsoleColor.White;
+        Console.WriteLine();
+    }
+
+    private static async Task<(double Duration, Plan Plan)> RunNewPlan(string goal, SequentialPlanner planner, Stopwatch sw)
+    {
+        sw.Restart();
+        var plan = await planner.CreatePlan2Async(goal);
+
+        sw.Stop();
+
+        return (Duration: sw.Elapsed.TotalMilliseconds, Plan: plan);
+    }
+
+    private static void PrintAccuracyResults(Plan originalPlan, Plan newPlan)
+    {
+        var plansMatch = originalPlan.ToPlanString() == newPlan.ToPlanString();
+        Console.Write("Plans match? ");
+        Example99_SequentialPlannerImprovements.WriteResult(plansMatch);
+
+        if (!plansMatch)
+        {
+            Console.WriteLine("New Plan: ");
+            Console.WriteLine(newPlan.ToPlanString());
+        }
+    }
+
+    private static void PrintSpeedResults(double original, double newSpeed)
+    {
+        Console.Write("New plan was faster? ");
+        Example99_SequentialPlannerImprovements.WriteResult(newSpeed < original);
+    }
+
+    private static async Task RunNewCreatePlan(string goal, SequentialPlanner planner, Stopwatch sw, double oldDuration, Plan oldPlan, string planType)
+    {
+        var newPlan = await Example99_SequentialPlannerImprovements.RunNewPlan(goal, planner, sw);
+
+        Console.WriteLine($"New {planType} took {newPlan.Duration} milliseconds");
+
+        Example99_SequentialPlannerImprovements.PrintAccuracyResults(oldPlan, newPlan.Plan);
+
+        Example99_SequentialPlannerImprovements.PrintSpeedResults(oldDuration, newPlan.Duration);
+    }
+
+    private static async Task RunCreatePlanComparisons()
     {
         Console.WriteLine("======== Sequential Planner - Create and Execute Poetry Plan ========");
         string serviceId = TestConfiguration.AzureOpenAI.ServiceId;
@@ -64,65 +125,57 @@ internal static class Example99_SequentialPlannerImprovements
                 TestConfiguration.AzureOpenAI.Endpoint,
                 TestConfiguration.AzureOpenAI.ApiKey)
             .Build();
+        Example99_SequentialPlannerImprovements.ImportSkills(kernel);
+        var planner = new SequentialPlanner(kernel, config: new SequentialPlannerConfig { RelevancyThreshold = 0.65, Memory = kernel.Memory });
+        var plannerWithSkillFiltererFunctionEnabled = new SequentialPlanner(kernel, config: new SequentialPlannerConfig { RelevancyThreshold = 0.65, Memory = kernel.Memory, UseSemanticFunctionForFunctionLookup = true });
+        string[] goals = {
+            "Write a poem about John Doe, then translate it into Italian.",
+            "Get the sum of 5 and 14, then log just the result to the console.",
+            "Concat the text '5 - 14 = ' with the difference of 5 and 14.",
+            "Given a conversation log, write a poem containing the action items from the conversation.",
+            "Send a GET request to https://en.wikipedia.org/wiki/Tree and summarize the response body",
+            "Summarize a conversation and generate a list of topics from the summary"
+        };
+        double originalCreatePlanDuration = 0;
+        double newCreatePlanWithMemoryDuration = 0;
+        double newCreatePlanWithSemanticFunctionDuration = 0;
 
-        string folder = RepoFiles.SampleSkillsPath();
-        var allSampleSkills = Example99_SequentialPlannerImprovements.GetSampleSkillNames(folder);
-        kernel.ImportSemanticSkillFromDirectory(folder,
-            allSampleSkills.ToArray());
-        var selectSkillsPrompt = @"
-Select the skills that are relevant to the goal given.
-[AVAILABLE SKILLS]
+        for (int i = 0; i < goals.Length; i++)
+        {
+            Console.ForegroundColor = ConsoleColor.White;
+            var goal = goals[i];
+            Console.WriteLine("---------------------------");
+            Console.WriteLine($"Goal: {goal}");
+            Stopwatch sw = Stopwatch.StartNew();
 
-{{$available_skills}}
+            Console.WriteLine("Running old create plan........");
+            var plan = await planner.CreatePlanAsync(goal);
 
-[END AVAILABLE SKILLS]
+            sw.Stop();
+            Console.WriteLine($"Old Create Plan took {sw.Elapsed.TotalMilliseconds} milliseconds");
+            originalCreatePlanDuration = sw.Elapsed.TotalMilliseconds;
 
-Output only the skill names on one line, delimited by commas.
-Begin!
+            Console.WriteLine("Original plan:");
+            Console.WriteLine(plan.ToPlanString());
 
-<goal>{{$input}}</goal>
+            //var result = await kernel.RunAsync(plan);
 
-";
-        var planner = new SequentialPlanner(kernel, config: new SequentialPlannerConfig { RelevancyThreshold = 0.65, Memory = kernel.Memory }, selectSkillsPrompt: selectSkillsPrompt);
-        var goal = "Write a poem about John Doe, then translate it into Italian.";
+            //Console.WriteLine("Result:");
+            //Console.WriteLine(result.Result);
 
-        Stopwatch sw = Stopwatch.StartNew();
+            Console.WriteLine();
+            Console.WriteLine("Running create plan using semantic memory to filter skills........");
 
-        var plan = await planner.CreatePlanAsync(goal);
+            await Example99_SequentialPlannerImprovements.RunNewCreatePlan(goal, planner, sw, originalCreatePlanDuration, plan, "Create plan using memory for skill filtering");
 
-        sw.Stop();
-        Console.WriteLine($"Old Create Plan took {sw.Elapsed.TotalMilliseconds} milliseconds");
+            Console.WriteLine();
+            Console.WriteLine("Running create plan using semantic function to filter skills........");
 
-        // Original plan:
-        // Goal: Write a poem about John Doe, then translate it into Italian.
+            await Example99_SequentialPlannerImprovements.RunNewCreatePlan(goal, plannerWithSkillFiltererFunctionEnabled, sw, originalCreatePlanDuration, plan, "Create plan using semantic function for skill filtering");
+            //var result2 = await kernel.RunAsync(plan2);
 
-        // Steps:
-        // - WriterSkill.ShortPoem INPUT='John Doe is a friendly guy who likes to help others and enjoys reading books.' =>
-        // - WriterSkill.Translate language='Japanese' INPUT='' =>
-
-        Console.WriteLine("Original plan:");
-        Console.WriteLine(plan.ToPlanWithGoalString());
-
-        //var result = await kernel.RunAsync(plan);
-
-        //Console.WriteLine("Result:");
-        //Console.WriteLine(result.Result);
-
-        sw.Restart();
-
-        var plan2 = await planner.CreatePlan2Async(goal);
-
-        sw.Stop();
-        Console.WriteLine($"New Create Plan took {sw.Elapsed.TotalMilliseconds} milliseconds");
-
-        Console.WriteLine("Selected Skills:");
-        Console.WriteLine(plan2);
-        //Console.WriteLine("New plan:");
-        //Console.WriteLine(plan2.ToPlanWithGoalString());
-
-        //var result2 = await kernel.RunAsync(plan2);
-
-        //Console.WriteLine("Result:");
-        //Console.WriteLine(result2.Result);
+            //Console.WriteLine("Result:");
+            //Console.WriteLine(result2.Result);
+        }
     }
 }

@@ -94,7 +94,7 @@ public sealed class Kernel : IKernel, IDisposable
         Verify.ValidFunctionName(functionName);
 
         ISKFunction function = this.CreateSemanticFunction(skillName, functionName, functionConfig);
-        this._skillCollection.AddFunction(function, skillName, functionConfig.PromptTemplateConfig.Description);
+        this._skillCollection.AddFunction(function, skillName, null);
 
         return function;
     }

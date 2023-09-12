@@ -1,5 +1,6 @@
 ﻿// Copyright (c) Microsoft. All rights reserved.
 
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
@@ -29,12 +30,16 @@ public static class SKContextSequentialPlannerExtensions
     /// Returns a string containing the manual for all available functions.
     /// </summary>
     /// <param name="context">The SKContext to get the functions manual for.</param>
+    /// <param name="kernel">TODO</param>
+    /// <param name="scopedSkillsSkill">Skill that filters a list of skills to the relevant skills.</param>
     /// <param name="semanticQuery">The semantic query for finding relevant registered functions</param>
     /// <param name="config">The planner skill config.</param>
     /// <param name="cancellationToken">The <see cref="CancellationToken"/> to monitor for cancellation requests. The default is <see cref="CancellationToken.None"/>.</param>
     /// <returns>A string containing the manual for all available functions.</returns>
-    public static async Task<string> GetSkillsManualAsync(
+    public static async Task<string> GetFunctionsManual2Async(
         this SKContext context,
+        IKernel kernel,
+        IDictionary<string, ISKFunction> scopedSkillsSkill,
         string? semanticQuery = null,
         SequentialPlannerConfig? config = null,
         CancellationToken cancellationToken = default)
@@ -42,23 +47,37 @@ public static class SKContextSequentialPlannerExtensions
         config ??= new SequentialPlannerConfig();
 
         // Use configured skill provider if available, otherwise use the default SKContext skill provider.
-        IOrderedEnumerable<SkillView> skills = config.GetAvailableSkillsAsync is null ?
-            await context.GetAvailableSkillsAsync(config, semanticQuery, cancellationToken).ConfigureAwait(false) :
+        ISet<string> skills = config.GetAvailableSkillsAsync is null ?
+            await context.GetAvailableSkillsAsync(kernel, scopedSkillsSkill, config, semanticQuery, cancellationToken).ConfigureAwait(false) :
             await config.GetAvailableSkillsAsync(config, semanticQuery, cancellationToken).ConfigureAwait(false);
+        Console.WriteLine($"Filtered skills length: {skills.Count}");
 
-        return string.Join("\n\n", skills.Select(x => x.ToManualString()));
+        // Use configured function provider if available, otherwise use the default SKContext function provider.
+        IOrderedEnumerable<FunctionView> functions = config.GetAvailableFunctionsAsync is null ?
+            await context.GetAvailableFunctionsAsync(config, semanticQuery, kernel, skills, scopedSkillsSkill, cancellationToken).ConfigureAwait(false) :
+            await config.GetAvailableFunctionsAsync(config, semanticQuery, cancellationToken).ConfigureAwait(false);
+
+        return string.Join("\n\n", functions.Select(x => x.ToManualString()));
     }
+
+    // change name to GetFunctionsManual2Async
+    // if config.UseSemanticFunctionForFunctionLookup is true, invoke skill for filtering skills and then filter functions
+    // else use what you have currently
 
     /// <summary>
     /// Returns a list of skills that are available to the user based on the semantic query and the excluded skills and functions.
     /// </summary>
     /// <param name="context">The SKContext</param>
+    /// <param name="kernel">TODO</param>
+    /// <param name="scopedSkillsSkill">TODO</param>
     /// <param name="config">The planner config.</param>
     /// <param name="semanticQuery">The semantic query for finding relevant registered functions</param>
     /// <param name="cancellationToken">The <see cref="CancellationToken"/> to monitor for cancellation requests. The default is <see cref="CancellationToken.None"/>.</param>
-    /// <returns>A list of functions that are available to the user based on the semantic query and the excluded skills and functions.</returns>
-    public static async Task<IOrderedEnumerable<SkillView>> GetAvailableSkillsAsync(
+    /// <returns>A set of functions that are available to the user based on the semantic query and the excluded skills and functions.</returns>
+    public static async Task<ISet<string>> GetAvailableSkillsAsync(
         this SKContext context,
+        IKernel kernel,
+        IDictionary<string, ISKFunction> scopedSkillsSkill,
         SequentialPlannerConfig config,
         string? semanticQuery = null,
         CancellationToken cancellationToken = default)
@@ -69,16 +88,27 @@ public static class SKContextSequentialPlannerExtensions
             .Where(s => !config.ExcludedSkills.Contains(s.Name))
             .ToList();
 
-        List<SkillView>? result = null;
-        if (string.IsNullOrEmpty(semanticQuery) || config.Memory is NullMemory || config.RelevancyThreshold is null)
+        List<string> result = new();
+        if (config.UseSemanticFunctionForFunctionLookup && semanticQuery != null)
+        {
+            context.Variables.Update(semanticQuery);
+            var availableSkillNames = availableSkills.Select(skill => skill.Name).ToList();
+            context.Variables.Set("available_skills", string.Join(",", availableSkillNames));
+
+            var filteredSkillsResult = await kernel.RunAsync(context.Variables, scopedSkillsSkill["FilterSkills"]).ConfigureAwait(false);
+
+            var filteredSkills = new HashSet<string>(filteredSkillsResult.Result.Trim().Split(','));
+            result = availableSkills.FindAll((skill) => filteredSkills.Contains(skill.Name) || config.IncludedSkills.Contains(skill.Name)).Select(skill => skill.Name).ToList();
+        }
+        else if (string.IsNullOrEmpty(semanticQuery) || config.Memory is NullMemory || config.RelevancyThreshold is null)
         {
             // If no semantic query is provided, return all available skills.
             // If a Memory provider has not been registered, return all available skills.
-            result = availableSkills;
+            result = availableSkills.Select(skill => skill.Name).ToList();
         }
         else
         {
-            result = new List<SkillView>();
+            result = new List<string>();
 
             // Remember skills in memory so that they can be searched.
             await RememberSkillsAsync(context, config.Memory, availableSkills, cancellationToken).ConfigureAwait(false);
@@ -95,15 +125,10 @@ public static class SKContextSequentialPlannerExtensions
             result.AddRange(await GetRelevantSkillsAsync(context, availableSkills, memories, cancellationToken).ConfigureAwait(false));
 
             // Add any missing skills that were included but not found in the search results.
-            var missingSkills = config.IncludedSkills
-                .Except(result.Select(x => x.Name))
-                .Join(availableSkills, f => f, af => af.Name, (_, af) => af);
-
-            result.AddRange(missingSkills);
+            result.AddRange(config.IncludedSkills);
         }
 
-        return result
-            .OrderBy(x => x.Name);
+        return new HashSet<string>(result);
     }
 
     /// <summary>
@@ -112,19 +137,21 @@ public static class SKContextSequentialPlannerExtensions
     /// <param name="context">The SKContext to get the functions manual for.</param>
     /// <param name="semanticQuery">The semantic query for finding relevant registered functions</param>
     /// <param name="config">The planner skill config.</param>
+    /// <param name="kernel"></param>
     /// <param name="cancellationToken">The <see cref="CancellationToken"/> to monitor for cancellation requests. The default is <see cref="CancellationToken.None"/>.</param>
     /// <returns>A string containing the manual for all available functions.</returns>
     public static async Task<string> GetFunctionsManualAsync(
         this SKContext context,
         string? semanticQuery = null,
         SequentialPlannerConfig? config = null,
+        IKernel? kernel = null,
         CancellationToken cancellationToken = default)
     {
         config ??= new SequentialPlannerConfig();
 
         // Use configured function provider if available, otherwise use the default SKContext function provider.
         IOrderedEnumerable<FunctionView> functions = config.GetAvailableFunctionsAsync is null ?
-            await context.GetAvailableFunctionsAsync(config, semanticQuery, cancellationToken).ConfigureAwait(false) :
+            await context.GetAvailableFunctionsAsync(config, semanticQuery, kernel, cancellationToken: cancellationToken).ConfigureAwait(false) :
             await config.GetAvailableFunctionsAsync(config, semanticQuery, cancellationToken).ConfigureAwait(false);
 
         return string.Join("\n\n", functions.Select(x => x.ToManualString()));
@@ -136,24 +163,41 @@ public static class SKContextSequentialPlannerExtensions
     /// <param name="context">The SKContext</param>
     /// <param name="config">The planner config.</param>
     /// <param name="semanticQuery">The semantic query for finding relevant registered functions</param>
+    /// <param name="kernel"></param>
+    /// <param name="skillsToInclude"></param>
+    /// <param name="scopedSkillsSkill"></param>
     /// <param name="cancellationToken">The <see cref="CancellationToken"/> to monitor for cancellation requests. The default is <see cref="CancellationToken.None"/>.</param>
     /// <returns>A list of functions that are available to the user based on the semantic query and the excluded skills and functions.</returns>
     public static async Task<IOrderedEnumerable<FunctionView>> GetAvailableFunctionsAsync(
         this SKContext context,
         SequentialPlannerConfig config,
         string? semanticQuery = null,
+        IKernel? kernel = null,
+        ISet<string>? skillsToInclude = null,
+        IDictionary<string, ISKFunction>? scopedSkillsSkill = null,
         CancellationToken cancellationToken = default)
     {
+        skillsToInclude ??= new HashSet<string>();
         var functionsView = context.Skills.GetFunctionsView();
 
         var availableFunctions = functionsView.SemanticFunctions
             .Concat(functionsView.NativeFunctions)
             .SelectMany(x => x.Value)
-            .Where(s => !config.ExcludedSkills.Contains(s.SkillName) && !config.ExcludedFunctions.Contains(s.Name))
+            .Where(s =>
+                !config.ExcludedSkills.Contains(s.SkillName) &&
+                !config.ExcludedFunctions.Contains(s.Name) &&
+                (skillsToInclude.Count == 0 || skillsToInclude.Contains(s.SkillName))
+                )
             .ToList();
 
         List<FunctionView>? result = null;
-        if (string.IsNullOrEmpty(semanticQuery) || config.Memory is NullMemory || config.RelevancyThreshold is null)
+        if (string.IsNullOrEmpty(semanticQuery) && config.UseSemanticFunctionForFunctionLookup && scopedSkillsSkill != null && kernel != null)
+        {
+            context.Variables.Set("available_functions", string.Join("\n\n", availableFunctions.Select(f => f.ToManualString())));
+
+            var filteredFunctionsResult = await kernel.RunAsync(semanticQuery, scopedSkillsSkill["FilterFunctions"]).ConfigureAwait(false);
+        }
+        else if (string.IsNullOrEmpty(semanticQuery) || config.Memory is NullMemory || config.RelevancyThreshold is null)
         {
             // If no semantic query is provided, return all available functions.
             // If a Memory provider has not been registered, return all available functions.
@@ -304,14 +348,14 @@ public static class SKContextSequentialPlannerExtensions
     }
 
     // TODO Reorder methods and consider making a generic method for this to be shared for getting skills/functions
-    private static async Task<IEnumerable<SkillView>> GetRelevantSkillsAsync(
+    private static async Task<IEnumerable<string>> GetRelevantSkillsAsync(
     SKContext context,
     IEnumerable<SkillView> availableSkills,
     IAsyncEnumerable<MemoryQueryResult> memories,
     CancellationToken cancellationToken = default)
     {
         ILogger? logger = null;
-        var relevantSkills = new ConcurrentBag<SkillView>();
+        var relevantSkills = new ConcurrentBag<string>();
         await foreach (var memoryEntry in memories.WithCancellation(cancellationToken))
         {
             var skill = availableSkills.FirstOrDefault(x => x.Name == memoryEntry.Metadata.Id);
@@ -323,7 +367,7 @@ public static class SKContextSequentialPlannerExtensions
                     logger.LogDebug("Found relevant function. Relevance Score: {0}, Function: {1}", memoryEntry.Relevance, skill.Name);
                 }
 
-                relevantSkills.Add(skill);
+                relevantSkills.Add(skill.Name);
             }
         }
 

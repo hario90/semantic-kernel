@@ -81,10 +81,15 @@ public sealed class SequentialPlannerConfig
     /// <summary>
     /// Optional callback to get the available skills for planning.
     /// </summary>
-    public Func<SequentialPlannerConfig, string?, CancellationToken, Task<IOrderedEnumerable<SkillView>>>? GetAvailableSkillsAsync { get; set; }
+    public Func<SequentialPlannerConfig, string?, CancellationToken, Task<ISet<string>>>? GetAvailableSkillsAsync { get; set; }
 
     /// <summary>
     /// Optional callback to get a function by name.
     /// </summary>
     public Func<string, string, ISKFunction?>? GetSkillFunction { get; set; }
+
+    /// <summary>
+    /// Optional flag to opt into pre-filtering skills and functions available to the planner using a semantic function
+    /// </summary>
+    public bool UseSemanticFunctionForFunctionLookup { get; set; } = false;
 }
