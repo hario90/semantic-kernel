@@ -85,6 +85,12 @@ public sealed class Plan : IPlan
 
     #endregion ISKFunction implementation
 
+    public Plan(string name, string description, string skillName)
+    {
+        this.Name = name;
+        this.Description = description;
+        this.SkillName = skillName;
+    }
     /// <summary>
     /// Initializes a new instance of the <see cref="Plan"/> class with a goal description.
     /// </summary>

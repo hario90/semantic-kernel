@@ -1,5 +1,6 @@
 ﻿// Copyright (c) Microsoft. All rights reserved.
 
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.SemanticKernel.Diagnostics;
@@ -50,14 +51,14 @@ public sealed class SequentialPlanner : ISequentialPlanner
     }
 
     /// <inheritdoc />
-    public async Task<Plan> CreatePlanAsync(string goal, CancellationToken cancellationToken = default)
+    public async Task<Plan> CreatePlanAsync(string goal, string? functionsManual = null, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrEmpty(goal))
         {
             throw new SKException("The goal specified is empty");
         }
 
-        string relevantFunctionsManual = await this._context.GetFunctionsManualAsync(goal, this.Config, cancellationToken).ConfigureAwait(false);
+        string relevantFunctionsManual = functionsManual ?? await this._context.GetFunctionsManualAsync(goal, this.Config, cancellationToken).ConfigureAwait(false);
         this._context.Variables.Set("available_functions", relevantFunctionsManual);
 
         this._context.Variables.Update(goal);

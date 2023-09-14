@@ -30,7 +30,7 @@ public sealed class InstrumentedSequentialPlanner : ISequentialPlanner
     }
 
     /// <inheritdoc />
-    public async Task<Plan> CreatePlanAsync(string goal, CancellationToken cancellationToken = default)
+    public async Task<Plan> CreatePlanAsync(string goal, string? functionsManual, CancellationToken cancellationToken = default)
     {
         using var activity = s_activitySource.StartActivity($"{PlannerType}.CreatePlan");
 
@@ -45,7 +45,7 @@ public sealed class InstrumentedSequentialPlanner : ISequentialPlanner
         {
             stopwatch.Start();
 
-            var plan = await this._planner.CreatePlanAsync(goal, cancellationToken).ConfigureAwait(false);
+            var plan = await this._planner.CreatePlanAsync(goal, functionsManual, cancellationToken).ConfigureAwait(false);
 
             stopwatch.Stop();
 

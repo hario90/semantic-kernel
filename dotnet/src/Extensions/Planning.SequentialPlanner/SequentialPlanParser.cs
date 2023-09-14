@@ -184,7 +184,7 @@ internal static class SequentialPlanParser
                         {
                             if (allowMissingFunctions)
                             {
-                                plan.AddSteps(new Plan(skillFunctionName));
+                                plan.AddSteps(new Plan(functionName, "description", skillName));
                             }
                             else
                             {

@@ -18,5 +18,5 @@ public interface ISequentialPlanner
     /// <param name="cancellationToken">The <see cref="CancellationToken"/> to monitor for cancellation requests. The default is <see cref="CancellationToken.None"/>.</param>
     /// <returns>The plan.</returns>
     /// <exception cref="SKException">Thrown when the plan cannot be created.</exception>
-    Task<Plan> CreatePlanAsync(string goal, CancellationToken cancellationToken = default);
+    Task<Plan> CreatePlanAsync(string goal, string? functionsManual, CancellationToken cancellationToken = default);
 }
