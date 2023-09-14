@@ -36,6 +36,10 @@ public sealed class SequentialPlannerConfig
     /// </remarks>
     public int MaxRelevantFunctions { get; set; } = 100;
 
+    public int MaxRelevantSkills { get; set; } = 5;
+
+    public int NumberTimesToSearch { get; set; } = 1;
+
     /// <summary>
     /// A list of skills to exclude from the plan creation request.
     /// </summary>

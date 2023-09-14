@@ -152,11 +152,12 @@ internal static class Example99_SequentialPlannerImprovements
         var plannerWithSkillFiltererFunctionEnabled = new SequentialPlanner(kernel, config: new SequentialPlannerConfig { RelevancyThreshold = 0.65, Memory = kernel.Memory, UseSemanticFunctionForFunctionLookup = true });
         string[] goals = {
             "Write a poem about John Doe, then translate it into Italian.",
-            "Get the sum of 5 and 14, then log just the result to the console.",
-            "Concat the text '5 - 14 = ' with the difference of 5 and 14.",
+            "Write a poem about John Doe, then translate it into Italian.",
             "Given a conversation log, write a poem containing the action items from the conversation.",
             "Send a GET request to https://en.wikipedia.org/wiki/Tree and summarize the response body",
-            "Summarize a conversation and generate a list of topics from the summary"
+            "Summarize a conversation and generate a list of topics from the summary",
+            // "Get the sum of 5 and 14, then log just the result to the console.",
+            //"Concat the text '5 - 14 = ' with the difference of 5 and 14.",
         };
         double originalCreatePlanDuration = 0;
         double newCreatePlanWithMemoryDuration = 0;
@@ -194,7 +195,7 @@ internal static class Example99_SequentialPlannerImprovements
             Console.WriteLine();
             Console.WriteLine("Running create plan using semantic function to filter skills........");
 
-            await Example99_SequentialPlannerImprovements.RunNewCreatePlan(goal, plannerWithSkillFiltererFunctionEnabled, sw, originalCreatePlanDuration, plan, "Create plan using semantic function for skill filtering");
+            //await Example99_SequentialPlannerImprovements.RunNewCreatePlan(goal, plannerWithSkillFiltererFunctionEnabled, sw, originalCreatePlanDuration, plan, "Create plan using semantic function for skill filtering");
             //var result2 = await kernel.RunAsync(plan2);
 
             //Console.WriteLine("Result:");

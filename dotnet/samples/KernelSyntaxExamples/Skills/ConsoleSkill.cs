@@ -6,9 +6,9 @@ using Microsoft.SemanticKernel.SkillDefinition;
 
 namespace Skills;
 
-[Description("Provides console writing utilities.")]
+[Description("Logs text to the console")]
 public sealed class ConsoleSkill
 {
-    [SKFunction, Description("Writes text to the console")]
+    [SKFunction, Description("Logs text to the console")]
     public static void Log([Description("Text to log")] string input) => Console.WriteLine(input);
 }
